@@ -1,51 +1,29 @@
 // Model
-
 let todos = [
   { id: 3, content: 'HTML', completed: false },
   { id: 2, content: 'CSS', completed: true },
   { id: 1, content: 'Javascript', completed: false },
 ];
 
-let mode = 'all';
-
-const filterTodos = mode => {
-  return mode === 'all'
-    ? todos
-    : mode === 'active'
-    ? todos.filter(todo => !todo.completed)
-    : todos.filter(todo => todo.completed);
+const setTodos = newTodos => {
+  todos = newTodos;
+  render();
 };
+
 const generateId = () => Math.max(...todos.map(todo => todo.id), 0) + 1;
 
-const addTodo = content => {
-  todos = [{ id: generateId(), content, completed: false }, ...todos];
-  render(mode);
-};
+const addTodo = content => setTodos([{ id: generateId(), content, completed: false }, ...todos]);
 
-const removeTodo = id => {
-  todos = todos.filter(todo => todo.id !== +id);
-  render(mode);
-};
+const removeTodo = id => setTodos(todos.filter(todo => todo.id !== +id));
 
-const updateTodo = (id, content) => {
-  todos = todos.map(todo => (todo.id === +id ? { ...todo, content } : todo));
-  render(mode);
-};
+const updateTodo = (id, content) => setTodos(todos.map(todo => (todo.id === +id ? { ...todo, content } : todo)));
 
-const toggleCompletedById = id => {
-  todos = todos.map(todo => (todo.id === +id ? { ...todo, completed: !todo.completed } : todo));
-  render(mode);
-};
+const toggleCompletedById = id =>
+  setTodos(todos.map(todo => (todo.id === +id ? { ...todo, completed: !todo.completed } : todo)));
 
-const allToggleCompleted = flag => {
-  todos = todos.map(todo => ({ ...todo, completed: flag }));
-  render(mode);
-};
+const allToggleCompleted = toggleAllFlag => setTodos(todos.map(todo => ({ ...todo, completed: toggleAllFlag })));
 
-const removeCompleteTodo = () => {
-  todos = todos.filter(todo => !todo.completed);
-  render(mode);
-};
+const removeCompleteTodo = () => setTodos(todos.filter(todo => !todo.completed));
 
 // Dom
 const $newTodo = document.querySelector('.new-todo');
@@ -53,102 +31,145 @@ const $toggleAll = document.getElementById('toggle-all');
 const $todoList = document.querySelector('.todo-list');
 const $todoEdit = document.querySelector('.edit');
 const $todoCount = document.querySelector('.todo-count');
-const $toggleBtn = document.querySelector('.toggle');
 const $all = document.getElementById('all');
 const $active = document.getElementById('active');
 const $completed = document.getElementById('completed');
 const $clearCompleted = document.querySelector('.clear-completed');
 
-const render = mode => {
-  $todoList.innerHTML = filterTodos(mode)
-    .map(
-      ({ id, content, completed }) =>
-        `<li data-id=${id}>
-            <div class="view">
-              <input type="checkbox" class="toggle" ${completed ? ' checked' : ''}/>
-              <label>${content}</label>
-              <button class="destroy"></button>
-            </div>
-            <input class="edit" value=${content} />
-          </li>`
-    )
-    .join('');
-  showCount();
-  showClearCompleted();
-};
+// Controller
+const modeHandler = (function () {
+  let mode = 'all';
 
-//add, delete 할 때만 수행되면 됨
-const showCount = () =>
+  return {
+    fetchTodos() {
+      return mode === 'all'
+        ? todos
+        : mode === 'active'
+        ? todos.filter(todo => !todo.completed)
+        : todos.filter(todo => todo.completed);
+    },
+    getMode() {
+      return mode;
+    },
+    setMode(newMode) {
+      mode = newMode;
+      $all.classList.toggle('selected', this.getMode() === 'all');
+      $active.classList.toggle('selected', this.getMode() === 'active');
+      $completed.classList.toggle('selected', this.getMode() === 'completed');
+      render();
+    },
+  };
+})();
+
+const toggleAllHandler = (function () {
+  let flag = false;
+
+  return {
+    getFlag() {
+      return flag;
+    },
+    reverseFlag() {
+      flag = !flag;
+    },
+  };
+})();
+
+const updateItemCount = () =>
   ($todoCount.textContent = todos.length > 1 ? `${todos.length} items left` : `${todos.length} item left`);
 
-const showClearCompleted = () => {
+const isVisibleClearCompleted = () => {
   $clearCompleted.style.display = todos.filter(todo => todo.completed).length ? '' : 'none';
 };
 
-$newTodo.onkeyup = e => {
+// View
+const render = () => {
+  $todoList.innerHTML = '';
+  const $fragment = document.createDocumentFragment();
+  modeHandler.fetchTodos().forEach(({ id, content, completed }) => {
+    const $li = document.createElement('li');
+    $li.dataset.id = id;
+
+    const $div = document.createElement('div');
+    $div.classList.add('view');
+
+    const $input = document.createElement('input');
+    $input.setAttribute('type', 'checkbox');
+    $input.classList.add('toggle');
+    if (completed) $input.setAttribute('checked', '');
+
+    const $label = document.createElement('label');
+    $label.textContent = content;
+
+    const $button = document.createElement('button');
+    $button.classList.add('destroy');
+
+    $div.append($input, $label, $button);
+
+    const $editInput = document.createElement('input');
+    $editInput.classList.add('edit');
+    $editInput.setAttribute('value', content);
+
+    $li.append($div, $editInput);
+    $fragment.append($li);
+  });
+
+  $todoList.append($fragment);
+
+  updateItemCount();
+  isVisibleClearCompleted();
+};
+
+// event handler
+$newTodo.addEventListener('keyup', e => {
   if (e.key !== 'Enter') return;
+
   const content = $newTodo.value.trim();
   if (content !== '') {
     addTodo(content);
   }
   $newTodo.value = '';
-};
-
-let flag = false;
-$toggleAll.addEventListener('click', function () {
-  flag = !flag;
-  allToggleCompleted(flag);
 });
 
-$todoList.addEventListener('click', function ({ target }) {
+$toggleAll.addEventListener('click', () => {
+  toggleAllHandler.reverseFlag();
+  allToggleCompleted(toggleAllHandler.getFlag());
+});
+
+$todoList.addEventListener('click', ({ target }) => {
   const id = target.parentNode.parentNode.dataset.id;
-  if (target.matches('.view > .destroy')) removeTodo(id);
+  if (target.matches('.destroy')) removeTodo(id);
   if (target.matches('.toggle')) toggleCompletedById(id);
 });
 
-$todoList.addEventListener('dblclick', function ({ target }) {
-  if (!target.matches('.view > label')) return;
+$todoList.addEventListener('dblclick', ({ target }) => {
+  if (!target.matches('label')) return;
+
   const $li = target.parentNode.parentNode;
-  const id = target.parentNode.parentNode.dataset.id;
   $li.classList.add('editing');
+
   const $edit = target.parentNode.nextElementSibling;
-  $edit.onkeyup = e => {
+  
+  $edit.addEventListener('keyup', e => {
     if (e.key !== 'Enter') return;
     const content = $edit.value.trim();
     if (content !== '') {
-      updateTodo(id, content);
+      updateTodo($li.dataset.id, content);
     }
-  };
-});
-
-$clearCompleted.addEventListener('click', function () {
-  removeCompleteTodo();
+  });
 });
 
 $all.addEventListener('click', () => {
-  mode = 'all';
-  $all.classList.add('selected');
-  $active.classList.remove('selected');
-  $completed.classList.remove('selected');
-  render(mode);
+  modeHandler.setMode('all');
 });
-
 
 $active.addEventListener('click', () => {
-  mode = 'active';
-  $active.classList.add('selected');
-  $all.classList.remove('selected');
-  $completed.classList.remove('selected');
-  render(mode);
+  modeHandler.setMode('active');
 });
-
 
 $completed.addEventListener('click', () => {
-  mode = 'completed';
-  $completed.classList.add('selected');
-  $active.classList.remove('selected');
-  $all.classList.remove('selected');
-  render(mode);
+  modeHandler.setMode('completed');
 });
 
-render(mode);
+$clearCompleted.addEventListener('click', removeCompleteTodo);
+
+render();
