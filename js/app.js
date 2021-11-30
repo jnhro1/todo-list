@@ -37,14 +37,20 @@ const $completed = document.getElementById('completed');
 const $clearCompleted = document.querySelector('.clear-completed');
 
 // Controller
+const MODE_TYPE = {
+  ALL: 'all',
+  ACTIVE: 'active',
+  COMPLETED: 'completed',
+};
+
 const modeHandler = (function () {
-  let mode = 'all';
+  let mode = MODE_TYPE.All;
 
   return {
     fetchTodos() {
-      return mode === 'all'
+      return mode === MODE_TYPE.All
         ? todos
-        : mode === 'active'
+        : mode === MODE_TYPE.ACTIVE
         ? todos.filter(todo => !todo.completed)
         : todos.filter(todo => todo.completed);
     },
@@ -53,23 +59,23 @@ const modeHandler = (function () {
     },
     setMode(newMode) {
       mode = newMode;
-      $all.classList.toggle('selected', this.getMode() === 'all');
-      $active.classList.toggle('selected', this.getMode() === 'active');
-      $completed.classList.toggle('selected', this.getMode() === 'completed');
+      $all.classList.toggle('selected', this.getMode() === MODE_TYPE.All);
+      $active.classList.toggle('selected', this.getMode() === MODE_TYPE.ACTIVE);
+      $completed.classList.toggle('selected', this.getMode() === MODE_TYPE.COMPLETED);
       render();
     },
   };
 })();
 
 const toggleAllHandler = (function () {
-  let flag = false;
+  let completedFlag = false;
 
   return {
-    getFlag() {
-      return flag;
+    getCompletedFlag() {
+      return completedFlag;
     },
-    reverseFlag() {
-      flag = !flag;
+    reverseCompletedFlag() {
+      completedFlag = !completedFlag;
     },
   };
 })();
@@ -131,8 +137,8 @@ $newTodo.addEventListener('keyup', e => {
 });
 
 $toggleAll.addEventListener('click', () => {
-  toggleAllHandler.reverseFlag();
-  allToggleCompleted(toggleAllHandler.getFlag());
+  toggleAllHandler.reverseCompletedFlag();
+  allToggleCompleted(toggleAllHandler.getCompletedFlag());
 });
 
 $todoList.addEventListener('click', ({ target }) => {
@@ -148,7 +154,7 @@ $todoList.addEventListener('dblclick', ({ target }) => {
   $li.classList.add('editing');
 
   const $edit = target.parentNode.nextElementSibling;
-  
+
   $edit.addEventListener('keyup', e => {
     if (e.key !== 'Enter') return;
     const content = $edit.value.trim();
@@ -158,18 +164,12 @@ $todoList.addEventListener('dblclick', ({ target }) => {
   });
 });
 
-$all.addEventListener('click', () => {
-  modeHandler.setMode('all');
-});
+$all.addEventListener('click', () => modeHandler.setMode(MODE_TYPE.ALL));
 
-$active.addEventListener('click', () => {
-  modeHandler.setMode('active');
-});
+$active.addEventListener('click', () => modeHandler.setMode(MODE_TYPE.ACTIVE));
 
-$completed.addEventListener('click', () => {
-  modeHandler.setMode('completed');
-});
+$completed.addEventListener('click', () => modeHandler.setMode(MODE_TYPE.COMPLETED));
 
 $clearCompleted.addEventListener('click', removeCompleteTodo);
 
-render();
+window.addEventListener('DOMContentLoaded', render);
